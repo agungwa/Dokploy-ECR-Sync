@@ -44,7 +44,7 @@ async function getEcrAuthToken(region) {
   return {
     username,
     password,
-    registryUrl: authData.proxyEndpoint
+    registryUrl: authData.proxyEndpoint.replace(/^https?:\/\//, "")
   };
 }
 
@@ -138,11 +138,31 @@ var DokployClient = class {
     }
     return apps;
   }
+  async findComposesByRegistryId(registryId) {
+    const projects = await this.listProjects();
+    const composes = [];
+    for (const project of projects) {
+      for (const env of project.environments || []) {
+        for (const compose of env.composes || []) {
+          if (compose.registryId === registryId) {
+            composes.push(compose);
+          }
+        }
+      }
+    }
+    return composes;
+  }
   async redeployApplication(applicationId) {
     await this.request("POST", "application.redeploy", { applicationId });
   }
   async deployApplication(applicationId) {
     await this.request("POST", "application.deploy", { applicationId });
+  }
+  async redeployCompose(composeId) {
+    await this.request("POST", "compose.redeploy", { composeId });
+  }
+  async deployCompose(composeId) {
+    await this.request("POST", "compose.deploy", { composeId });
   }
 };
 
@@ -153,14 +173,16 @@ async function run() {
     const dokployApiKey = core.getInput("dokploy-api-key", { required: true });
     const awsRegion = core.getInput("aws-region", { required: true });
     const registryName = core.getInput("registry-name") || "AWS ECR";
+    const registryUsername = core.getInput("registry-username") || "AWS";
     const imagePrefix = core.getInput("image-prefix") || "";
     const applicationIdsInput = core.getInput("application-ids") || "";
+    const composeIdsInput = core.getInput("compose-ids") || "";
     const shouldRedeploy = core.getInput("redeploy") !== "false";
     const testConnection = core.getInput("test-connection") === "true";
     core.info("Fetching ECR auth token...");
     const ecrAuth = await getEcrAuthToken(awsRegion);
     core.info(
-      `Got ECR token for registry: ${ecrAuth.registryUrl} (user: ${ecrAuth.username})`
+      `Got ECR token for registry: ${ecrAuth.registryUrl} (user: ${registryUsername})`
     );
     const client = new DokployClient(dokployUrl, dokployApiKey);
     core.info(`Looking for existing registry "${registryName}" in Dokploy...`);
@@ -171,7 +193,7 @@ async function run() {
       core.info(`Found existing registry (ID: ${existing.registryId}). Updating password...`);
       await client.updateRegistry({
         registryId: existing.registryId,
-        username: ecrAuth.username,
+        username: registryUsername,
         password: ecrAuth.password,
         registryUrl: ecrAuth.registryUrl,
         imagePrefix: imagePrefix || void 0
@@ -183,7 +205,7 @@ async function run() {
       core.info(`No existing registry found. Creating "${registryName}"...`);
       await client.createRegistry({
         registryName,
-        username: ecrAuth.username,
+        username: registryUsername,
         password: ecrAuth.password,
         registryUrl: ecrAuth.registryUrl,
         imagePrefix: imagePrefix || void 0
@@ -196,7 +218,7 @@ async function run() {
     if (testConnection) {
       core.info("Testing registry connection...");
       await client.testRegistry({
-        username: ecrAuth.username,
+        username: registryUsername,
         password: ecrAuth.password,
         registryUrl: ecrAuth.registryUrl
       });
@@ -209,6 +231,7 @@ async function run() {
       return;
     }
     let appIds = [];
+    let composeIds = [];
     if (applicationIdsInput.trim()) {
       appIds = applicationIdsInput.split(",").map((id) => id.trim()).filter(Boolean);
       core.info(`Using ${appIds.length} explicit application ID(s).`);
@@ -218,8 +241,17 @@ async function run() {
       appIds = apps.map((app) => app.applicationId);
       core.info(`Found ${appIds.length} application(s) using registry "${registryName}".`);
     }
-    if (appIds.length === 0) {
-      core.info("No applications to redeploy.");
+    if (composeIdsInput.trim()) {
+      composeIds = composeIdsInput.split(",").map((id) => id.trim()).filter(Boolean);
+      core.info(`Using ${composeIds.length} explicit compose ID(s).`);
+    } else if (registryId) {
+      core.info("Auto-discovering compose services using this registry...");
+      const composes = await client.findComposesByRegistryId(registryId);
+      composeIds = composes.map((c) => c.composeId);
+      core.info(`Found ${composeIds.length} compose service(s) using registry "${registryName}".`);
+    }
+    if (appIds.length === 0 && composeIds.length === 0) {
+      core.info("No applications or compose services to redeploy.");
       return;
     }
     for (const appId of appIds) {
@@ -227,7 +259,12 @@ async function run() {
       await client.redeployApplication(appId);
       core.info(`Application ${appId} redeploy triggered.`);
     }
-    core.info(`Done. ${appIds.length} application(s) redeployed.`);
+    for (const composeId of composeIds) {
+      core.info(`Redeploying compose ${composeId}...`);
+      await client.redeployCompose(composeId);
+      core.info(`Compose ${composeId} redeploy triggered.`);
+    }
+    core.info(`Done. ${appIds.length} application(s) and ${composeIds.length} compose service(s) redeployed.`);
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(error.message);

@@ -23,6 +23,6 @@ export async function getEcrAuthToken(region: string): Promise<EcrAuth> {
   return {
     username,
     password,
-    registryUrl: authData.proxyEndpoint,
+    registryUrl: authData.proxyEndpoint.replace(/^https?:\/\//, ""),
   };
 }

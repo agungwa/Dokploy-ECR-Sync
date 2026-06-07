@@ -2,6 +2,7 @@ import type {
   DokployRegistry,
   DokployProject,
   DokployApplication,
+  DokployCompose,
 } from "./types.js";
 
 export class DokployClient {
@@ -136,11 +137,36 @@ export class DokployClient {
     return apps;
   }
 
+  async findComposesByRegistryId(registryId: string): Promise<DokployCompose[]> {
+    const projects = await this.listProjects();
+    const composes: DokployCompose[] = [];
+
+    for (const project of projects) {
+      for (const env of project.environments || []) {
+        for (const compose of env.composes || []) {
+          if (compose.registryId === registryId) {
+            composes.push(compose);
+          }
+        }
+      }
+    }
+
+    return composes;
+  }
+
   async redeployApplication(applicationId: string): Promise<void> {
     await this.request("POST", "application.redeploy", { applicationId });
   }
 
   async deployApplication(applicationId: string): Promise<void> {
     await this.request("POST", "application.deploy", { applicationId });
+  }
+
+  async redeployCompose(composeId: string): Promise<void> {
+    await this.request("POST", "compose.redeploy", { composeId });
+  }
+
+  async deployCompose(composeId: string): Promise<void> {
+    await this.request("POST", "compose.deploy", { composeId });
   }
 }

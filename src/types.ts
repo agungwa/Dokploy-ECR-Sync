@@ -31,11 +31,20 @@ export interface DokployProject {
   environments: DokployEnvironment[];
 }
 
+export interface DokployCompose {
+  composeId: string;
+  name: string;
+  appName: string;
+  registryId: string | null;
+  environmentId: string;
+}
+
 export interface DokployEnvironment {
   environmentId: string;
   name: string;
   appName: string;
   applications: DokployApplication[];
+  composes: DokployCompose[];
 }
 
 export type SyncAction = "created" | "updated";

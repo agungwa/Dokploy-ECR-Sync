@@ -16,12 +16,20 @@ inputs:
     description: "Display name for the registry in Dokploy"
     required: false
     default: "AWS ECR"
+  registry-username:
+    description: "Username for the registry. Defaults to 'AWS' (ECR standard)."
+    required: false
+    default: "AWS"
   image-prefix:
-    description: "Optional image prefix for the registry"
+    description: "Optional image prefix (e.g. 123456789012.dkr.ecr.ap-southeast-1.amazonaws.com/my-app)"
     required: false
     default: ""
   application-ids:
     description: "Comma-separated application IDs to redeploy. If empty, auto-discovers apps using the registry."
+    required: false
+    default: ""
+  compose-ids:
+    description: "Comma-separated compose service IDs to redeploy. If empty, auto-discovers compose services using the registry."
     required: false
     default: ""
   redeploy:

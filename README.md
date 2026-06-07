@@ -1,14 +1,15 @@
 # Dokploy ECR Sync
 
-A GitHub Action that syncs AWS ECR credentials to your [Dokploy](https://dokploy.com) instance and optionally redeploys applications.
+A GitHub Action that syncs AWS ECR credentials to your [Dokploy](https://dokploy.com) instance and optionally redeploys applications and compose services.
 
-AWS ECR auth tokens expire every **12 hours**. This action fetches a fresh token and updates (or creates) the registry credential in Dokploy, then triggers redeployment of the affected applications.
+AWS ECR auth tokens expire every **12 hours**. This action fetches a fresh token and updates (or creates) the registry credential in Dokploy, then triggers redeployment of the affected applications and/or compose services.
 
 ## Features
 
 - Fetches fresh ECR auth token via AWS SDK
 - Creates or updates registry credentials in Dokploy
-- Auto-discovers applications using the registry, or accepts explicit app IDs
+- Auto-discovers applications and compose services using the registry, or accepts explicit IDs
+- Supports both applications and compose services for redeployment
 - Optionally tests the registry connection
 - Supports both OIDC and access key AWS authentication
 
@@ -101,6 +102,33 @@ jobs:
           redeploy: true
 ```
 
+### Redeploy Compose Services
+
+To redeploy compose (Docker Compose) services instead of or alongside applications:
+
+```yaml
+- uses: agungwa/Dokploy-ECR-Sync@v1
+  with:
+    dokploy-url: ${{ secrets.DOKPLOY_URL }}
+    dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
+    aws-region: ap-southeast-1
+    compose-ids: "compose-id-1,compose-id-2"
+    redeploy: true
+```
+
+You can combine both:
+
+```yaml
+- uses: agungwa/Dokploy-ECR-Sync@v1
+  with:
+    dokploy-url: ${{ secrets.DOKPLOY_URL }}
+    dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
+    aws-region: ap-southeast-1
+    application-ids: "app-id-1"
+    compose-ids: "compose-id-1"
+    redeploy: true
+```
+
 ### First-Time Setup (Create Registry)
 
 On first run, if no registry named "AWS ECR" exists in Dokploy, the action creates one automatically:
@@ -125,8 +153,9 @@ On first run, if no registry named "AWS ECR" exists in Dokploy, the action creat
 | `aws-region` | yes | — | AWS region for ECR (e.g. `ap-southeast-1`) |
 | `registry-name` | no | `AWS ECR` | Display name for the registry in Dokploy |
 | `image-prefix` | no | — | Optional image prefix for the registry |
-| `application-ids` | no | — | Comma-separated app IDs to redeploy. If empty, auto-discovers apps using the registry |
-| `redeploy` | no | `true` | Whether to redeploy applications after updating credentials |
+| `application-ids` | no | — | Comma-separated application IDs to redeploy. If empty, auto-discovers apps using the registry |
+| `compose-ids` | no | — | Comma-separated compose service IDs to redeploy. If empty, auto-discovers compose services using the registry |
+| `redeploy` | no | `true` | Whether to redeploy applications and compose services after updating credentials |
 | `test-connection` | no | `false` | Test the registry connection after create/update |
 
 ## Outputs
@@ -149,10 +178,15 @@ On first run, if no registry named "AWS ECR" exists in Dokploy, the action creat
    ├─ Found   → POST /registry.update { registryId, password }
    └─ Not found → POST /registry.create { name, username, password, url }
 
-4. Redeploy applications
-   ├─ If application-ids provided → use those
-   └─ Otherwise → GET /project.all → find apps with matching registryId
-   └─ POST /application.redeploy for each app
+4. Redeploy services
+   ├─ Applications
+   │  ├─ If application-ids provided → use those
+   │  └─ Otherwise → GET /project.all → find apps with matching registryId
+   │  └─ POST /application.redeploy for each
+   └─ Compose services
+      ├─ If compose-ids provided → use those
+      └─ Otherwise → GET /project.all → find composes with matching registryId
+      └─ POST /compose.redeploy for each
 ```
 
 ## Required AWS Permissions
@@ -187,16 +221,21 @@ If you also need to push images, add `ecr:BatchCheckLayerAvailability`, `ecr:Get
 
 For OIDC authentication, configure your AWS IAM role to trust your GitHub repository as a principal. See [aws-actions/configure-aws-credentials](https://github.com/aws-actions/configure-aws-credentials) for setup instructions.
 
-## Finding Your Application ID
+## Finding Your Application or Compose ID
 
-You can get application IDs via the Dokploy API:
+You can get IDs via the Dokploy API:
 
 ```bash
 curl -X GET "https://your-dokploy-instance.com/api/project.all" \
   -H "x-api-key: YOUR_API_KEY"
 ```
 
-Look for `applicationId` in the response under each project's environments.
+- **Application ID**: look for `applicationId` in the response under each project's environments → `applications`
+- **Compose ID**: look for `composeId` under each project's environments → `composes`
+
+Alternatively, find the ID from the Dokploy dashboard URL:
+- Application: `.../services/application/<APPLICATION_ID>`
+- Compose: `.../services/compose/<COMPOSE_ID>`
 
 ## License
 

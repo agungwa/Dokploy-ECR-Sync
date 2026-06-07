@@ -9,15 +9,17 @@ async function run(): Promise<void> {
     const dokployApiKey = core.getInput("dokploy-api-key", { required: true });
     const awsRegion = core.getInput("aws-region", { required: true });
     const registryName = core.getInput("registry-name") || "AWS ECR";
+    const registryUsername = core.getInput("registry-username") || "AWS";
     const imagePrefix = core.getInput("image-prefix") || "";
     const applicationIdsInput = core.getInput("application-ids") || "";
+    const composeIdsInput = core.getInput("compose-ids") || "";
     const shouldRedeploy = core.getInput("redeploy") !== "false";
     const testConnection = core.getInput("test-connection") === "true";
 
     core.info("Fetching ECR auth token...");
     const ecrAuth = await getEcrAuthToken(awsRegion);
     core.info(
-      `Got ECR token for registry: ${ecrAuth.registryUrl} (user: ${ecrAuth.username})`
+      `Got ECR token for registry: ${ecrAuth.registryUrl} (user: ${registryUsername})`
     );
 
     const client = new DokployClient(dokployUrl, dokployApiKey);
@@ -32,7 +34,7 @@ async function run(): Promise<void> {
       core.info(`Found existing registry (ID: ${existing.registryId}). Updating password...`);
       await client.updateRegistry({
         registryId: existing.registryId,
-        username: ecrAuth.username,
+        username: registryUsername,
         password: ecrAuth.password,
         registryUrl: ecrAuth.registryUrl,
         imagePrefix: imagePrefix || undefined,
@@ -44,7 +46,7 @@ async function run(): Promise<void> {
       core.info(`No existing registry found. Creating "${registryName}"...`);
       await client.createRegistry({
         registryName,
-        username: ecrAuth.username,
+        username: registryUsername,
         password: ecrAuth.password,
         registryUrl: ecrAuth.registryUrl,
         imagePrefix: imagePrefix || undefined,
@@ -59,7 +61,7 @@ async function run(): Promise<void> {
     if (testConnection) {
       core.info("Testing registry connection...");
       await client.testRegistry({
-        username: ecrAuth.username,
+        username: registryUsername,
         password: ecrAuth.password,
         registryUrl: ecrAuth.registryUrl,
       });
@@ -74,8 +76,9 @@ async function run(): Promise<void> {
       return;
     }
 
-    // Resolve application IDs to redeploy
+    // Resolve application and compose IDs to redeploy
     let appIds: string[] = [];
+    let composeIds: string[] = [];
 
     if (applicationIdsInput.trim()) {
       appIds = applicationIdsInput
@@ -90,8 +93,21 @@ async function run(): Promise<void> {
       core.info(`Found ${appIds.length} application(s) using registry "${registryName}".`);
     }
 
-    if (appIds.length === 0) {
-      core.info("No applications to redeploy.");
+    if (composeIdsInput.trim()) {
+      composeIds = composeIdsInput
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+      core.info(`Using ${composeIds.length} explicit compose ID(s).`);
+    } else if (registryId) {
+      core.info("Auto-discovering compose services using this registry...");
+      const composes = await client.findComposesByRegistryId(registryId);
+      composeIds = composes.map((c) => c.composeId);
+      core.info(`Found ${composeIds.length} compose service(s) using registry "${registryName}".`);
+    }
+
+    if (appIds.length === 0 && composeIds.length === 0) {
+      core.info("No applications or compose services to redeploy.");
       return;
     }
 
@@ -101,7 +117,13 @@ async function run(): Promise<void> {
       core.info(`Application ${appId} redeploy triggered.`);
     }
 
-    core.info(`Done. ${appIds.length} application(s) redeployed.`);
+    for (const composeId of composeIds) {
+      core.info(`Redeploying compose ${composeId}...`);
+      await client.redeployCompose(composeId);
+      core.info(`Compose ${composeId} redeploy triggered.`);
+    }
+
+    core.info(`Done. ${appIds.length} application(s) and ${composeIds.length} compose service(s) redeployed.`);
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(error.message);
