@@ -1,0 +1,44 @@
+name: "Dokploy ECR Sync"
+description: "Sync AWS ECR credentials to Dokploy registry and redeploy applications"
+author: "dokploy-ecr"
+
+inputs:
+  dokploy-url:
+    description: "Dokploy instance URL (e.g. https://dokploy.example.com)"
+    required: true
+  dokploy-api-key:
+    description: "Dokploy API key"
+    required: true
+  aws-region:
+    description: "AWS region for ECR"
+    required: true
+  registry-name:
+    description: "Display name for the registry in Dokploy"
+    required: false
+    default: "AWS ECR"
+  image-prefix:
+    description: "Optional image prefix for the registry"
+    required: false
+    default: ""
+  application-ids:
+    description: "Comma-separated application IDs to redeploy. If empty, auto-discovers apps using the registry."
+    required: false
+    default: ""
+  redeploy:
+    description: "Whether to redeploy applications after updating credentials"
+    required: false
+    default: "true"
+  test-connection:
+    description: "Test registry connection after create/update"
+    required: false
+    default: "false"
+
+outputs:
+  registry-id:
+    description: "The Dokploy registry ID"
+  action:
+    description: "Action taken: 'created' or 'updated'"
+
+runs:
+  using: "node20"
+  main: "dist/index.js"

@@ -1,0 +1,20 @@
+{
+  "name": "dokploy-ecr-action",
+  "version": "1.0.0",
+  "description": "GitHub Action to sync AWS ECR credentials to Dokploy and redeploy applications",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsup",
+    "prepare": "npm run build"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@aws-sdk/client-ecr": "^3.600.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsup": "^8.1.0",
+    "typescript": "^5.5.0"
+  }
+}
