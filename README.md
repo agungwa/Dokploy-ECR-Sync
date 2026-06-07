@@ -34,7 +34,7 @@ jobs:
           aws-region: ap-southeast-1
 
       - name: Sync ECR to Dokploy
-        uses: agungwa/Dokploy-ECR-Sync@v1
+        uses: agungwa/Dokploy-ECR-Sync@v1.0.0
         with:
           dokploy-url: ${{ secrets.DOKPLOY_URL }}
           dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
@@ -62,7 +62,7 @@ jobs:
           aws-region: ap-southeast-1
 
       - name: Sync ECR to Dokploy
-        uses: agungwa/Dokploy-ECR-Sync@v1
+        uses: agungwa/Dokploy-ECR-Sync@v1.0.0
         with:
           dokploy-url: ${{ secrets.DOKPLOY_URL }}
           dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
@@ -93,7 +93,7 @@ jobs:
           aws-region: ap-southeast-1
 
       - name: Refresh ECR Credentials & Redeploy
-        uses: agungwa/Dokploy-ECR-Sync@v1
+        uses: agungwa/Dokploy-ECR-Sync@v1.0.0
         with:
           dokploy-url: ${{ secrets.DOKPLOY_URL }}
           dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
@@ -107,7 +107,7 @@ jobs:
 To redeploy compose (Docker Compose) services instead of or alongside applications:
 
 ```yaml
-- uses: agungwa/Dokploy-ECR-Sync@v1
+- uses: agungwa/Dokploy-ECR-Sync@v1.0.0
   with:
     dokploy-url: ${{ secrets.DOKPLOY_URL }}
     dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
@@ -119,7 +119,7 @@ To redeploy compose (Docker Compose) services instead of or alongside applicatio
 You can combine both:
 
 ```yaml
-- uses: agungwa/Dokploy-ECR-Sync@v1
+- uses: agungwa/Dokploy-ECR-Sync@v1.0.0
   with:
     dokploy-url: ${{ secrets.DOKPLOY_URL }}
     dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
@@ -134,7 +134,7 @@ You can combine both:
 On first run, if no registry named "AWS ECR" exists in Dokploy, the action creates one automatically:
 
 ```yaml
-- uses: agungwa/Dokploy-ECR-Sync@v1
+- uses: agungwa/Dokploy-ECR-Sync@v1.0.0
   with:
     dokploy-url: ${{ secrets.DOKPLOY_URL }}
     dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
