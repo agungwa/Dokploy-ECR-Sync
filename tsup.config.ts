@@ -6,6 +6,7 @@ export default defineConfig({
   target: "node20",
   outDir: "dist",
   clean: true,
+  noExternal: ["@actions/core", "@aws-sdk/client-ecr"],
   splitting: false,
   sourcemap: false,
   minify: false,
